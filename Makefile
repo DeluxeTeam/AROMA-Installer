@@ -1,9 +1,4 @@
 #!/usr/bin/make -f
-ARCH := arm64
-ARCH_ASFLAGS :=
-ARCH_CFLAGS :=
-USE_NEON := 0
-
 
 # Version info
 AROMA_NAME    := AROMA Installer
@@ -11,11 +6,14 @@ AROMA_VERSION := 3.00b1
 AROMA_BUILD   := $(shell date +%y%m%d%H)
 AROMA_CN      := Flamboyan
 
+CC := $(CROSS_COMPILE)gcc
+CXX := $(CROSS_COMPILE)g++
+AS := $(CROSS_COMPILE)as
+AR := $(CROSS_COMPILE)ar
 
-CC := ../TOOLCHAINS/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc-4.9.4
-CXX := ../TOOLCHAINS/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu--g++-4.9.4
-AS := ../TOOLCHAINS/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-as
-AR := ../TOOLCHAINS/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-ar
+ifeq ($(ARCH),x86)
+	ARCH_CFLAGS := -m32
+endif
 
 SOURCES_zlib := \
 	libs/zlib/adler32.c \
@@ -25,9 +23,6 @@ SOURCES_zlib := \
 	libs/zlib/inflate.c \
 	libs/zlib/inftrees.c \
 	libs/zlib/zutil.c
-ifeq ($(USE_NEON),1)
-	SOURCES_zlib += libs/zlib/inflate_fast_copy_neon.s
-endif
 
 SOURCES_libpng := \
 	libs/png/png.c \
@@ -43,10 +38,6 @@ SOURCES_libpng := \
 	libs/png/pngset.c \
 	libs/png/pngtrans.c \
 	libs/png/pngvcrd.c
-
-ifeq ($(USE_NEON),1)
-	SOURCES_libpng += libs/png/png_read_filter_row_neon.s
-endif
 
 
 SOURCES_minutf8 := libs/minutf8/minutf8.c
@@ -95,9 +86,10 @@ OBJS := $(OBJS:.s=.o)
 INCLUDES := -Iinclude -Isrc
 
 AROMA_VERSION_CFLAGS := -DAROMA_NAME="\"$(AROMA_NAME)\"" -DAROMA_VERSION="\"$(AROMA_VERSION)\"" -DAROMA_BUILD="\"$(AROMA_BUILD)\"" -DAROMA_BUILD_CN="\"$(AROMA_CN)\"" $(INCLUDES)
-CFLAGS := $(ARCH_CFLAGS) -O2 -static -DFT2_BUILD_LIBRARY=1 -fPIC -DPIC -fdata-sections -ffunction-sections -D_AROMA_NODEBUG $(AROMA_VERSION_CFLAGS)
-ASFLAGS := $(ARCH_ASFLAGS)
-LDLIBS := -lm -lpthread
+CFLAGS := $(ARCH_CFLAGS) -Os -static -DFT2_BUILD_LIBRARY=1 -fdata-sections -ffunction-sections -fPIC -DPIC \
+	-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -DDARWIN_NO_CARBON -D_AROMA_NODEBUG \
+	-Wl,--allow-multiple-definition $(AROMA_VERSION_CFLAGS)
+LDLIBS := -lm -lpthread -s -save-temps
 LDFLAGS := --gc-sections --strip-all
 
 all: bin/aroma_installer-$(ARCH).zip
